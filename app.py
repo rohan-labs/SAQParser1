@@ -45,7 +45,7 @@ st.write(
     and then uploads the data to two Supabase tables:
    
     - **saqParent**: Contains the parent question with columns: `id`, `parentQuestion` (text), and `categoryId` (integer).
-    - **saqChild**: Contains sub-questions with columns: `id`, `questionLead` (text), `idealAnswer` (text), and `parentQuestionId` (integer).
+    - **saqChild**: Contains sub-questions with columns: `id`, `questionLead` (text), `idealAnswer` (text), keyConcept (text), and `parentQuestionId` (integer).
     """
 )
 
@@ -112,6 +112,7 @@ You must output the data in a nested JSON format where each key at the root is a
 - **childQuestions**: a list of objects, each with:
     - **questionLead**: the sub-question text (string)
     - **idealAnswer**: the ideal answer text (string)
+    - **keyConcept**: this is the key fact the question was assessing the student on
 
 
 Ensure that you include every detail from the text. Do not omit or summarize any information. Do not add any additional keys.
@@ -131,11 +132,13 @@ The JSON should be:
     "childQuestions": [
       {{
         "questionLead": "What river runs through Paris?",
-        "idealAnswer": "The Seine"
+        "idealAnswer": "The Seine",
+        "keyConcept": "Seine is the predominant river that runs through Paris"
       }},
       {{
         "questionLead": "What famous tower is located in Paris?",
-        "idealAnswer": "The Eiffel Tower"
+        "idealAnswer": "The Eiffel Tower",
+        "keyConcept": "Popularity can be determind through word of mouth. Given this metric, Eiffel Tower is the most popular"
       }}
     ]
   }}
