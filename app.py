@@ -45,7 +45,7 @@ st.write(
     and then uploads the data to two Supabase tables:
    
     - **saqParent**: Contains the parent question with columns: `id`, `parentQuestion` (text), and `categoryId` (integer).
-    - **saqChild**: Contains sub-questions with columns: `id`, `questionLead` (text), `idealAnswer` (text), and `parentQuestionId` (integer).
+    - **saqChild**: Contains sub-questions with columns: `id`, `questionLead` (text), `idealAnswer` (text), 'keyConcept' (text) and `parentQuestionId` (integer).
     """
 )
 
@@ -112,6 +112,7 @@ You must output the data in a nested JSON format where each key at the root is a
 - **childQuestions**: a list of objects, each with:
     - **questionLead**: the sub-question text (string)
     - **idealAnswer**: the ideal answer text (string)
+    - **keyConcept**: the key concept of the sub-question (string)
 
 
 Ensure that you include every detail from the text. Do not omit or summarize any information. Do not add any additional keys.
@@ -131,11 +132,13 @@ The JSON should be:
     "childQuestions": [
       {{
         "questionLead": "What river runs through Paris?",
-        "idealAnswer": "The Seine"
+        "idealAnswer": "The Seine",
+        "keyConcept": "Paris"
       }},
       {{
         "questionLead": "What famous tower is located in Paris?",
-        "idealAnswer": "The Eiffel Tower"
+        "idealAnswer": "The Eiffel Tower",
+        "keyConcept": "Paris"
       }}
     ]
   }}
@@ -226,6 +229,7 @@ Now, parse the following text and output the JSON accordingly:
                             child_record = {
                                 "questionLead": child.get("questionLead"),
                                 "idealAnswer": child.get("idealAnswer"),
+                                "keyConcept": child.get("keyConcept"),
                                 "parentQuestionId": parent_id
                             }
                             child_response = supabase.table("saqChild").insert(child_record, returning="representation").execute()
@@ -253,6 +257,3 @@ Now, parse the following text and output the JSON accordingly:
             st.warning("No data was parsed from the uploaded files.")
 else:
     st.write("No files uploaded.")
-
-
-
