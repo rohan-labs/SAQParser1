@@ -1,4 +1,3 @@
-import os
 import json
 import streamlit as st
 import time
@@ -12,16 +11,13 @@ from openai import OpenAI
 from supabase import create_client, Client
 
 
-def get_env_variable(var_name):
-    try:
-        return st.secrets[var_name]
-    except Exception:
-        return os.getenv(var_name)
+def get_secret(key_name):
+    return st.secrets[key_name]
 
 
-openai_api_key = get_env_variable("OPENAI_API_KEY")
-supabase_url = get_env_variable("SUPABASE_URL")
-supabase_key = get_env_variable("SUPABASE_KEY")
+openai_api_key = get_secret("OPENAI_API_KEY")
+supabase_url = get_secret("SUPABASE_URL")
+supabase_key = get_secret("SUPABASE_KEY")
 
 
 if not openai_api_key or not supabase_url or not supabase_key:
