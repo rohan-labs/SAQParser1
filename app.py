@@ -209,7 +209,7 @@ Now, parse the following text and output the JSON accordingly:
                     # Prepare the parent record for insertion (saqParent)
                     parent_record = {
                         "parentQuestion": parent.get("parentQuestion"),
-                        "categoryId": parent.get("categoryId")
+                        "moduleId": parent.get("moduleId")
                         "image": parent.get("image")
                     }
                     # Insert the parent record and return the inserted record to get its ID.
