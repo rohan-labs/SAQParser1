@@ -1,6 +1,22 @@
-streamlit
-PyPDF2
-docx2txt
-openai
-supabase
-python-dotenv
+# Core Framework
+streamlit>=1.28.0
+
+# AI/ML
+openai>=1.0.0
+
+# Database & Storage
+supabase>=2.0.0
+
+# Document Processing
+PyPDF2>=3.0.0
+docx2txt>=0.8
+PyMuPDF>=1.23.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# Environment & Utilities
+python-dotenv>=1.0.0
+
+# Additional utilities (if needed)
+requests>=2.31.0
