@@ -40,7 +40,7 @@ st.write(
     (each with a question lead and an ideal answer). The app uses OpenAI to parse the text into a nested JSON format
     and then uploads the data to two Supabase tables:
    
-    - **saqParent**: Contains the parent question with columns: `id`, `parentQuestion` (text), and `categoryId` (integer).
+    - **saqParent**: Contains the parent question with columns: `id`, `parentQuestion` (text), moduleId` (integer), image(text)
     - **saqChild**: Contains sub-questions with columns: `id`, `questionLead` (text), `idealAnswer` (text), 'keyConcept' (text) and `parentQuestionId` (integer).
     """
 )
@@ -124,7 +124,8 @@ The JSON should be:
 {{
   "0": {{
     "parentQuestion": "What is the capital of France?",
-    "categoryId": 2,
+    "moduleId": 2,
+    "image": "image link (can be null)"
     "childQuestions": [
       {{
         "questionLead": "What river runs through Paris?",
@@ -147,7 +148,7 @@ Now, parse the following text and output the JSON accordingly:
 
 
                 response = openai_client.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-4.1",
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant that extracts SAQ information and formats it as nested JSON."},
                         {"role": "user", "content": prompt}
@@ -209,6 +210,7 @@ Now, parse the following text and output the JSON accordingly:
                     parent_record = {
                         "parentQuestion": parent.get("parentQuestion"),
                         "categoryId": parent.get("categoryId")
+                        "image": parent.get("image")
                     }
                     # Insert the parent record and return the inserted record to get its ID.
                     parent_response = supabase.table("saqParent").insert(parent_record, returning="representation").execute()
