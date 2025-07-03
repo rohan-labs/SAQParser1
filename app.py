@@ -104,7 +104,7 @@ You will be provided with text containing SAQ (Short Answer Questions) data. Eac
 
 You must output the data in a nested JSON format where each key at the root is a unique identifier for a parent question. Each parent question object must include the following keys:
 - **parentQuestion**: the main question stem (string)
-- **categoryId**: an integer representing the category
+- **moduleId**: an integer representing the module
 - **childQuestions**: a list of objects, each with:
     - **questionLead**: the sub-question text (string)
     - **idealAnswer**: the ideal answer text (string)
