@@ -278,81 +278,91 @@ def upsert_saq_data_to_supabase(parsed_data):
         
         for i, scenario_data in enumerate(parsed_data):
             try:
-                # Prepare parent data
+                # Prepare parent data - ONLY the fields we want, NO ID
                 parent_data = {
-                    'parentQuestion': scenario_data['parentQuestion'],
-                    'moduleId': scenario_data['moduleId']
+                    'parentQuestion': str(scenario_data['parentQuestion']).strip(),
+                    'moduleId': int(scenario_data['moduleId'])
                 }
                 
                 # Add image if present
                 if scenario_data.get('image'):
-                    parent_data['image'] = scenario_data['image']
+                    parent_data['image'] = str(scenario_data['image']).strip()
                 
-                # Check if parent already exists
+                st.info(f"🔍 Checking for existing parent scenario...")
+                
+                # Check if parent already exists - exact match on parentQuestion
                 existing_parent = supabase.table("saqParent").select("id").eq(
-                    'parentQuestion', scenario_data['parentQuestion']
+                    'parentQuestion', scenario_data['parentQuestion'].strip()
                 ).execute()
                 
-                if existing_parent.data:
+                if existing_parent.data and len(existing_parent.data) > 0:
                     # Use existing parent
                     parent_id = existing_parent.data[0]['id']
-                    st.info(f"📋 Using existing parent scenario: {parent_id}")
+                    st.info(f"📋 Using existing parent scenario ID: {parent_id}")
                     upload_summary['parent_success'] += 1
                 else:
-                    # Insert new parent record
+                    # Insert new parent record - let database auto-generate ID
+                    st.info(f"🔄 Inserting new parent record...")
+                    
                     parent_response = supabase.table("saqParent").insert(parent_data).execute()
                     
+                    # Check for errors
                     if hasattr(parent_response, 'error') and parent_response.error:
-                        st.error(f"Parent table error for scenario {i + 1}: {parent_response.error}")
+                        st.error(f"❌ Parent table error for scenario {i + 1}: {parent_response.error}")
                         upload_summary['parent_errors'] += 1
                         continue
                     
+                    # Get the generated ID
                     if parent_response.data and len(parent_response.data) > 0:
                         parent_id = parent_response.data[0]['id']
                         upload_summary['parent_success'] += 1
-                        st.success(f"✅ Created new parent scenario: {parent_id}")
+                        st.success(f"✅ Created new parent scenario with ID: {parent_id}")
                     else:
-                        st.error(f"Could not retrieve parent ID for scenario {i + 1}")
+                        st.error(f"❌ Could not retrieve parent ID for scenario {i + 1}")
+                        st.error(f"Response: {parent_response}")
                         upload_summary['parent_errors'] += 1
                         continue
                 
                 # Process child questions
                 child_questions = scenario_data.get('childQuestions', [])
+                st.info(f"📝 Processing {len(child_questions)} child questions for parent {parent_id}")
                 
                 for j, child_question in enumerate(child_questions):
                     try:
+                        # Prepare child data - ONLY the fields we want, NO ID
                         child_data = {
-                            'questionLead': child_question['questionLead'],
-                            'idealAnswer': child_question['idealAnswer'],
-                            'parentQuestionId': parent_id,
-                            'keyConcept': child_question['keyConcept']
+                            'questionLead': str(child_question['questionLead']).strip(),
+                            'idealAnswer': str(child_question['idealAnswer']).strip(),
+                            'parentQuestionId': int(parent_id),
+                            'keyConcept': str(child_question['keyConcept']).strip()
                         }
                         
-                        # Check if child question already exists (check by questionLead and parentQuestionId)
+                        # Check if child question already exists
                         existing_child = supabase.table("saqChild").select("id").eq(
-                            'questionLead', child_question['questionLead']
+                            'questionLead', child_question['questionLead'].strip()
                         ).eq('parentQuestionId', parent_id).execute()
                         
-                        if existing_child.data:
-                            st.info(f"📝 Child question already exists, skipping... (Parent {parent_id}, Question {j + 1})")
+                        if existing_child.data and len(existing_child.data) > 0:
+                            st.info(f"📝 Child question {j + 1} already exists, skipping...")
                             upload_summary['child_success'] += 1
                         else:
-                            # Insert child record
+                            # Insert child record - let database auto-generate ID
                             child_response = supabase.table("saqChild").insert(child_data).execute()
                             
                             if hasattr(child_response, 'error') and child_response.error:
-                                st.error(f"Child table error for scenario {i + 1}, question {j + 1}: {child_response.error}")
+                                st.error(f"❌ Child table error for scenario {i + 1}, question {j + 1}: {child_response.error}")
                                 upload_summary['child_errors'] += 1
                             else:
+                                child_id = child_response.data[0]['id'] if child_response.data else 'unknown'
                                 upload_summary['child_success'] += 1
-                                st.success(f"✅ Created child question for parent {parent_id}")
+                                st.success(f"✅ Created child question {j + 1} with ID: {child_id}")
                                 
                     except Exception as child_e:
-                        st.error(f"Child question {j + 1} upload exception: {child_e}")
+                        st.error(f"❌ Child question {j + 1} upload exception: {child_e}")
                         upload_summary['child_errors'] += 1
                 
             except Exception as parent_e:
-                st.error(f"Parent scenario {i + 1} upload exception: {parent_e}")
+                st.error(f"❌ Parent scenario {i + 1} upload exception: {parent_e}")
                 upload_summary['parent_errors'] += 1
             
             # Update progress
@@ -362,7 +372,7 @@ def upsert_saq_data_to_supabase(parsed_data):
         return upload_summary
         
     except Exception as e:
-        st.error(f"General upload error: {e}")
+        st.error(f"❌ General upload error: {e}")
         return None
 
 # Main File Processing Section
