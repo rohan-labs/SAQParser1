@@ -28,21 +28,15 @@ def get_env_variable(var_name):
 openai_api_key = get_env_variable("OPENAI_API_KEY")
 supabase_url = get_env_variable("SUPABASE_URL")
 supabase_key = get_env_variable("SUPABASE_KEY")
-assistant_id = get_env_variable("ASSISTANT_ID")
 
-if not openai_api_key or not supabase_url or not supabase_key or not assistant_id:
-    st.error("API keys, credentials, or assistant ID are not properly set.")
+if not openai_api_key or not supabase_url or not supabase_key:
+    st.error("API keys or credentials are not properly set.")
     st.stop()
 
 client = OpenAI(api_key=openai_api_key)
 supabase: Client = create_client(supabase_url, supabase_key)
 
-st.session_state.assistant = client.beta.assistants.retrieve(assistant_id)
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Helper Functions for Image Processing (reusing from MCQ parser)
+# Helper Functions for Image Processing
 def create_supabase_bucket_if_not_exists():
     """Ensure the mcq-images bucket exists in Supabase Storage"""
     try:
@@ -270,7 +264,7 @@ def process_file_with_enhanced_extraction(uploaded_file):
     return text_content, extracted_images
 
 def upsert_saq_data_to_supabase(parsed_data):
-    """Upsert SAQ data to both parent and child tables with proper relationships"""
+    """Insert SAQ data to both parent and child tables with duplicate checking"""
     try:
         upload_summary = {
             'parent_success': 0,
@@ -294,52 +288,68 @@ def upsert_saq_data_to_supabase(parsed_data):
                 if scenario_data.get('image'):
                     parent_data['image'] = scenario_data['image']
                 
-                # Insert/update parent record
-                parent_response = supabase.table("saqParent").upsert(
-                    parent_data,
-                    on_conflict="parentQuestion"
+                # Check if parent already exists
+                existing_parent = supabase.table("saqParent").select("id").eq(
+                    'parentQuestion', scenario_data['parentQuestion']
                 ).execute()
                 
-                if hasattr(parent_response, 'error') and parent_response.error:
-                    st.error(f"Parent table error for scenario {i + 1}: {parent_response.error}")
-                    upload_summary['parent_errors'] += 1
-                    continue
-                
-                # Get the parent ID from the response
-                if parent_response.data and len(parent_response.data) > 0:
-                    parent_id = parent_response.data[0]['id']
+                if existing_parent.data:
+                    # Use existing parent
+                    parent_id = existing_parent.data[0]['id']
+                    st.info(f"📋 Using existing parent scenario: {parent_id}")
                     upload_summary['parent_success'] += 1
+                else:
+                    # Insert new parent record
+                    parent_response = supabase.table("saqParent").insert(parent_data).execute()
                     
-                    # Process child questions
-                    child_questions = scenario_data.get('childQuestions', [])
+                    if hasattr(parent_response, 'error') and parent_response.error:
+                        st.error(f"Parent table error for scenario {i + 1}: {parent_response.error}")
+                        upload_summary['parent_errors'] += 1
+                        continue
                     
-                    for j, child_question in enumerate(child_questions):
-                        try:
-                            child_data = {
-                                'questionLead': child_question['questionLead'],
-                                'idealAnswer': child_question['idealAnswer'],
-                                'parentQuestionId': parent_id,
-                                'keyConcept': child_question['keyConcept']
-                            }
-                            
+                    if parent_response.data and len(parent_response.data) > 0:
+                        parent_id = parent_response.data[0]['id']
+                        upload_summary['parent_success'] += 1
+                        st.success(f"✅ Created new parent scenario: {parent_id}")
+                    else:
+                        st.error(f"Could not retrieve parent ID for scenario {i + 1}")
+                        upload_summary['parent_errors'] += 1
+                        continue
+                
+                # Process child questions
+                child_questions = scenario_data.get('childQuestions', [])
+                
+                for j, child_question in enumerate(child_questions):
+                    try:
+                        child_data = {
+                            'questionLead': child_question['questionLead'],
+                            'idealAnswer': child_question['idealAnswer'],
+                            'parentQuestionId': parent_id,
+                            'keyConcept': child_question['keyConcept']
+                        }
+                        
+                        # Check if child question already exists (check by questionLead and parentQuestionId)
+                        existing_child = supabase.table("saqChild").select("id").eq(
+                            'questionLead', child_question['questionLead']
+                        ).eq('parentQuestionId', parent_id).execute()
+                        
+                        if existing_child.data:
+                            st.info(f"📝 Child question already exists, skipping... (Parent {parent_id}, Question {j + 1})")
+                            upload_summary['child_success'] += 1
+                        else:
                             # Insert child record
-                            child_response = supabase.table("saqChild").upsert(
-                                child_data,
-                                on_conflict="questionLead,parentQuestionId"
-                            ).execute()
+                            child_response = supabase.table("saqChild").insert(child_data).execute()
                             
                             if hasattr(child_response, 'error') and child_response.error:
                                 st.error(f"Child table error for scenario {i + 1}, question {j + 1}: {child_response.error}")
                                 upload_summary['child_errors'] += 1
                             else:
                                 upload_summary['child_success'] += 1
+                                st.success(f"✅ Created child question for parent {parent_id}")
                                 
-                        except Exception as child_e:
-                            st.error(f"Child question {j + 1} upload exception: {child_e}")
-                            upload_summary['child_errors'] += 1
-                else:
-                    st.error(f"Could not retrieve parent ID for scenario {i + 1}")
-                    upload_summary['parent_errors'] += 1
+                    except Exception as child_e:
+                        st.error(f"Child question {j + 1} upload exception: {child_e}")
+                        upload_summary['child_errors'] += 1
                 
             except Exception as parent_e:
                 st.error(f"Parent scenario {i + 1} upload exception: {parent_e}")
@@ -354,45 +364,6 @@ def upsert_saq_data_to_supabase(parsed_data):
     except Exception as e:
         st.error(f"General upload error: {e}")
         return None
-
-# Display chat messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-# Chat input
-if prompt := st.chat_input("What is your question?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    # Create a new thread for each conversation
-    thread = client.beta.threads.create()
-
-    # Add user message to the thread
-    client.beta.threads.messages.create(
-        thread_id=thread.id,
-        role="user",
-        content=prompt
-    )
-
-    # Run the assistant
-    run = client.beta.threads.runs.create(
-        thread_id=thread.id,
-        assistant_id=st.session_state.assistant.id,
-    )
-
-    # Wait for the run to complete
-    while run.status != "completed":
-        run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
-
-    # Retrieve and display the assistant's response
-    messages = client.beta.threads.messages.list(thread_id=thread.id)
-    assistant_message = messages.data[0].content[0].text.value
-
-    st.session_state.messages.append({"role": "assistant", "content": assistant_message})
-    with st.chat_message("assistant"):
-        st.markdown(assistant_message)
 
 # Main File Processing Section
 st.title("📋 SAQ Parser with Automatic Image Extraction")
@@ -512,7 +483,7 @@ if uploaded_files:
                 """
 
                 response = client.chat.completions.create(
-                    model="gpt-4-turbo", 
+                    model="gpt-4.1", 
                     messages=[
                         {"role": "system", "content": "You are a precise JSON parser that extracts SAQ data while preserving all content and identifying image associations. You structure clinical scenarios with their associated questions."},
                         {"role": "user", "content": prompt}
