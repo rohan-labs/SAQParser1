@@ -334,7 +334,8 @@ def upsert_saq_data_to_supabase(parsed_data):
                             'questionLead': str(child_question['questionLead']).strip(),
                             'idealAnswer': str(child_question['idealAnswer']).strip(),
                             'parentQuestionId': int(parent_id),
-                            'keyConcept': str(child_question['keyConcept']).strip()
+                            'keyConcept': str(child_question['keyConcept']).strip(),
+                            'total_marks': int(child_question['total_marks'])
                         }
                         
                         # Check if child question already exists
@@ -444,6 +445,7 @@ if uploaded_files:
                   - questionLead (string): The specific question being asked
                   - idealAnswer (string): The expected/ideal answer
                   - keyConcept (string): The main concept being tested
+                  - total_marks (integer): The total marks allocated for this question
                 
                 {image_context}
                 When parsing scenarios, look for any references to images, figures, diagrams, ECGs, X-rays, or visual elements.
@@ -463,17 +465,20 @@ if uploaded_files:
                       {{
                         "questionLead": "What is the most likely diagnosis based on the clinical presentation and ECG findings?",
                         "idealAnswer": "Inferior ST-elevation myocardial infarction (STEMI). The patient presents with typical chest pain, ECG changes showing ST-elevation in the inferior leads (II, III, aVF), and hemodynamic compromise.",
-                        "keyConcept": "STEMI diagnosis and ECG interpretation"
+                        "keyConcept": "STEMI diagnosis and ECG interpretation",
+                        "total_marks": 5
                       }},
                       {{
                         "questionLead": "What immediate management steps should be taken?",
                         "idealAnswer": "1. Activate cardiac catheterization lab for primary PCI, 2. Administer dual antiplatelet therapy (aspirin + P2Y12 inhibitor), 3. Anticoagulation with heparin, 4. Oxygen if SpO2 <90%, 5. IV access and continuous monitoring, 6. Pain relief with morphine if needed.",
-                        "keyConcept": "STEMI emergency management"
+                        "keyConcept": "STEMI emergency management",
+                        "total_marks": 8
                       }},
                       {{
                         "questionLead": "Which coronary artery is most likely occluded based on the ECG pattern?",
                         "idealAnswer": "Right coronary artery (RCA). Inferior STEMI with ST-elevation in leads II, III, and aVF typically indicates RCA occlusion, as the RCA usually supplies the inferior wall of the left ventricle.",
-                        "keyConcept": "Coronary anatomy and ECG correlation"
+                        "keyConcept": "Coronary anatomy and ECG correlation",
+                        "total_marks": 3
                       }}
                     ]
                   }}
@@ -485,6 +490,7 @@ if uploaded_files:
                 - INCLUDE ALL answer details - never summarize
                 - RETAIN EVERY WORD from the ideal answers in the document
                 - Make sure moduleId is always an integer
+                - Make sure total_marks is always an integer
                 - Pay attention to any image references in the text and set hasImage/imagePosition accordingly
                 - Group related questions under the same parent scenario
                 
